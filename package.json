@@ -1,0 +1,47 @@
+{
+  "name": "@gb/cdk-static-site",
+  "version": "1.1.0",
+  "main": "dist/static-site.js",
+  "types": "dist/static-site.d.ts",
+  "engines": {
+    "node": ">=14",
+    "npm": ">=7"
+  },
+  "files": [
+    "dist/**/*",
+    "lib/**/*"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "lint": "eslint --ext .ts .",
+    "lint:fix": "eslint --fix --ext .ts ."
+  },
+  "devDependencies": {
+    "@aws-cdk/assert": "^2.0.0-rc.14",
+    "@gb/cdk-pkg-pipeline": "^1.2.1",
+    "@types/jest": "^26.0.24",
+    "@types/node": "^14.17.6",
+    "@typescript-eslint/eslint-plugin": "^4.28.5",
+    "@typescript-eslint/parser": "^4.28.5",
+    "eslint": "^7.31.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-jest": "^24.4.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "jest": "^26.6.3",
+    "prettier": "^2.3.2",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^26.5.6",
+    "typescript": "^4.3.5"
+  },
+  "peerDependencies": {
+    "aws-cdk-lib": "^2.0.0-rc.15",
+    "constructs": "^10.0.5"
+  },
+  "volta": {
+    "node": "14.17.3",
+    "npm": "7.20.0"
+  }
+}

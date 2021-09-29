@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", // ES2020 mostly supported in NodeJS 14
+    "lib": [
+      "ES2020"
+    ],
+    "module": "commonjs",
+    "alwaysStrict": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true, // outputs .d.ts files
+    "declarationMap": true, // maps .d.ts files to .ts files allowing for "Go To Definition"
+    "outDir": "dist"
+  },
+  "include": [
+    "lib"
+  ]
+}
