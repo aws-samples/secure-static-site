@@ -1,5 +1,5 @@
 {
-  "name": "@gb/cdk-static-site",
+  "name": "secure-static-site",
   "version": "1.1.0",
   "main": "dist/static-site.js",
   "types": "dist/static-site.d.ts",
@@ -21,7 +21,6 @@
   },
   "devDependencies": {
     "@aws-cdk/assert": "^2.0.0-rc.14",
-    "@gb/cdk-pkg-pipeline": "^1.2.1",
     "@types/jest": "^26.0.24",
     "@types/node": "^14.17.6",
     "@typescript-eslint/eslint-plugin": "^4.28.5",
@@ -37,7 +36,7 @@
     "typescript": "^4.3.5"
   },
   "peerDependencies": {
-    "aws-cdk-lib": "^2.0.0-rc.15",
+    "aws-cdk-lib": "^2.0.0-rc.23",
     "constructs": "^10.0.5"
   },
   "volta": {

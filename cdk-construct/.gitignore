@@ -1,0 +1,10 @@
+.autoenv
+.DS_Store
+node_modules
+
+# for local dev with npm link
+dist/*
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out

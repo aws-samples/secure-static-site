@@ -7,10 +7,10 @@ interface BuildStaticSiteProps {
   buildCommand: string;
   /**
    * Environment Variables to be set before the build command
-   * For example, passing { VITE_APP_USER_POOL: "abcdef12345" },
-   * may result in the comamnd "VITE_APP_USER_POOL=abcdef12345 npm run build"
+   * For example, passing { VITE_USER_POOL: "abcdef12345" },
+   * may result in the comamnd "VITE_USER_POOL=abcdef12345 npm run build"
    */
-  envVars?: Record<`VITE_APP_${string}`, string>;
+  envVars?: Record<`VITE_${string}`, string>;
   /**
    * current working directory where the buildCommand will be run
    */
