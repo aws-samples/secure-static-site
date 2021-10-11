@@ -1,17 +1,21 @@
 {
   "name": "secure-static-site",
   "version": "1.1.0",
-  "main": "dist/static-site.js",
-  "types": "dist/static-site.d.ts",
+  "main": "lib/static-site.ts",
+  "publishConfig": {
+    "main": "dist/static-site.js",
+    "types": "dist/static-site.d.ts"
+  },
   "engines": {
     "node": ">=14",
-    "npm": ">=7"
+    "pnpm": ">=6"  
   },
   "files": [
     "dist/**/*",
     "lib/**/*"
   ],
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
     "prebuild": "rimraf dist",
     "build": "tsc",
     "watch": "tsc -w",
@@ -33,14 +37,8 @@
     "prettier": "^2.3.2",
     "rimraf": "^3.0.2",
     "ts-jest": "^26.5.6",
-    "typescript": "^4.3.5"
-  },
-  "peerDependencies": {
+    "typescript": "^4.3.5",
     "aws-cdk-lib": "^2.0.0-rc.23",
     "constructs": "^10.0.5"
-  },
-  "volta": {
-    "node": "14.17.3",
-    "npm": "7.20.0"
   }
 }
