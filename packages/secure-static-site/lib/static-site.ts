@@ -1,15 +1,19 @@
 import { Construct } from "constructs";
 import { Bucket } from "aws-cdk-lib/lib/aws-s3";
 import {
-  CloudFrontWebDistribution,
-  OriginAccessIdentity,
+  Distribution,
+  Function,
+  FunctionEventType,
+  FunctionCode,
   ViewerProtocolPolicy,
 } from "aws-cdk-lib/lib/aws-cloudfront";
+import { S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { RemovalPolicy } from "aws-cdk-lib";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { resolve } from "path";
 import { CfnWebACL, CfnIPSet } from "aws-cdk-lib/aws-wafv2";
 import { buildStaticSite } from "./buildStaticSite";
+import { getFunctionCode, ResponseHeaders } from "./responseHeaders";
 
 export interface StaticSiteProps {
   /**
@@ -34,7 +38,30 @@ export interface StaticSiteProps {
    * IPs that are allowed to view docs - uses WAF
    */
   allowedIps?: string[];
+  /**
+   * HTTP Response Headers
+   * Headers added via CloudFront Function to origin responses
+   * @default ```js
+   * {
+   *    contentSecurityPolicy: {
+   *      defaultSrc: "none",
+   *      scriptSrc: "self",
+   *      connectSrc: "self",
+   *      styleSrc: "self",
+   *      formAction: "none",
+   *      frameAncestors: "none",
+   *    },
+   *    strictTransportSecurity: {
+   *      maxAge: 63072000, // 2 years
+   *      includeSubDomains: true,
+   *      preload: true,
+   *    },
+   * }
+   * ```
+   */
+  responseHeaders?: ResponseHeaders;
 }
+
 /**
  * StaticSite Construct
  * Creates an S3 Bucket, Origin Access Identity, CloudFront Web Distribution,
@@ -42,7 +69,7 @@ export interface StaticSiteProps {
  */
 export class StaticSite extends Construct {
   bucket: Bucket;
-  cloudFrontWebDistribution: CloudFrontWebDistribution;
+  distribution: Distribution;
 
   constructor(scope: Construct, id: string, props: StaticSiteProps) {
     super(scope, id);
@@ -52,17 +79,16 @@ export class StaticSite extends Construct {
       envVars,
       buildCommand = "npm run build",
       allowedIps,
+      responseHeaders,
     } = props;
+    // S3
     this.bucket = new Bucket(this, "StaticSiteBucket", {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
       enforceSSL: true,
     });
-    const originAccessIdentity = new OriginAccessIdentity(
-      this,
-      "StaticSiteOAI"
-    );
-    this.bucket.grantRead(originAccessIdentity);
+
+    // WAF
     let webACL: CfnWebACL | undefined = undefined;
     if (allowedIps) {
       const ipRuleSet = new CfnIPSet(this, "IPRuleSet", {
@@ -93,36 +119,38 @@ export class StaticSite extends Construct {
         },
       });
     }
-    this.cloudFrontWebDistribution = new CloudFrontWebDistribution(
-      this,
-      "StaticSiteWebDistribution",
-      {
-        webACLId: webACL ? webACL.attrArn : undefined,
-        originConfigs: [
-          {
-            s3OriginSource: {
-              s3BucketSource: this.bucket,
-              originAccessIdentity,
-            },
-            behaviors: [{ isDefaultBehavior: true }],
-          },
-        ],
-        errorConfigurations: [
-          {
-            errorCode: 404,
-            responseCode: 200,
-            responsePagePath: "/index.html",
-          },
-        ],
+
+    // CloudFront
+    this.distribution = new Distribution(this, "StaticSiteDistribution", {
+      defaultBehavior: {
+        origin: new S3Origin(this.bucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-      }
-    );
+        functionAssociations: [
+          {
+            function: new Function(this, "SecurityHeadersFn", {
+              code: FunctionCode.fromInline(getFunctionCode(responseHeaders)),
+              // explicit function name needed b/c https://github.com/aws/aws-cdk/issues/15523
+              functionName: `SecureStaticSite${this.node.addr}`,
+            }),
+            eventType: FunctionEventType.VIEWER_RESPONSE,
+          },
+        ],
+      },
+      webAclId: webACL?.attrId,
+      errorResponses: [
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+        },
+      ],
+    });
     // TODO: create CloudFront Function to specify Content-Security-Policy
     buildStaticSite({ path, buildCommand, envVars });
     new BucketDeployment(this, "BucketDeployment", {
       destinationBucket: this.bucket,
       sources: [Source.asset(resolve(path, distFolder))],
-      distribution: this.cloudFrontWebDistribution,
+      distribution: this.distribution,
     });
   }
 }
