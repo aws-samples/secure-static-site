@@ -6,12 +6,26 @@ import {
   FunctionEventType,
   FunctionCode,
   ViewerProtocolPolicy,
+  DistributionProps,
 } from "aws-cdk-lib/lib/aws-cloudfront";
 import { S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { RemovalPolicy } from "aws-cdk-lib";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { resolve } from "path";
 import { CfnWebACL, CfnIPSet } from "aws-cdk-lib/aws-wafv2";
+import {
+  IHostedZone,
+  HostedZone,
+  AaaaRecord,
+  ARecord,
+  RecordTarget,
+} from "aws-cdk-lib/aws-route53";
+import { CloudFrontTarget } from "aws-cdk-lib/aws-route53-targets";
+import {
+  Certificate,
+  CertificateValidation,
+} from "aws-cdk-lib/aws-certificatemanager";
+
 import { buildStaticSite } from "./buildStaticSite";
 import { getFunctionCode, ResponseHeaders } from "./responseHeaders";
 
@@ -60,6 +74,15 @@ export interface StaticSiteProps {
    * ```
    */
   responseHeaders?: ResponseHeaders;
+  /**
+   * Base domain name (should match Route 53 hosted zone name)
+   */
+  domainNameBase?: string;
+  /**
+   * Prefix for this application specifically (comes before hosted zone name in URL)
+   * e.g. subsite.base.com
+   */
+  domainNamePrefix?: string;
 }
 
 /**
@@ -70,6 +93,8 @@ export interface StaticSiteProps {
 export class StaticSite extends Construct {
   bucket: Bucket;
   distribution: Distribution;
+  zone?: IHostedZone;
+  fullDomainName?: string;
 
   constructor(scope: Construct, id: string, props: StaticSiteProps) {
     super(scope, id);
@@ -80,7 +105,10 @@ export class StaticSite extends Construct {
       buildCommand = "npm run build",
       allowedIps,
       responseHeaders,
+      domainNameBase,
+      domainNamePrefix,
     } = props;
+
     // S3
     this.bucket = new Bucket(this, "StaticSiteBucket", {
       autoDeleteObjects: true,
@@ -120,8 +148,7 @@ export class StaticSite extends Construct {
       });
     }
 
-    // CloudFront
-    this.distribution = new Distribution(this, "StaticSiteDistribution", {
+    let distributionProps: DistributionProps = {
       defaultBehavior: {
         origin: new S3Origin(this.bucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -136,6 +163,7 @@ export class StaticSite extends Construct {
           },
         ],
       },
+      defaultRootObject: "index.html",
       webAclId: webACL?.attrId,
       errorResponses: [
         {
@@ -144,7 +172,63 @@ export class StaticSite extends Construct {
           responsePagePath: "/index.html",
         },
       ],
-    });
+    };
+
+    // configure Route 53 only if domain name base and prefix are set
+    if (domainNameBase && domainNamePrefix) {
+      this.zone = HostedZone.fromLookup(this, "StaticSiteHostedZone", {
+        domainName: domainNameBase,
+      });
+      // prefix allows multiple apps to use same base
+      this.fullDomainName = `${domainNamePrefix}.${domainNameBase}`;
+      // can only create certificate in CDK if using Route 53 for DNS
+      let certificate = new Certificate(this, "StaticSiteCertificate", {
+        domainName: this.fullDomainName,
+        validation: CertificateValidation.fromDns(this.zone),
+        // allow subdomains (e.g. www, test, stage, etc)
+        subjectAlternativeNames: [`*.${this.fullDomainName}`],
+      });
+      // update CloudFront distribution with domain names and certificate
+      distributionProps = {
+        ...distributionProps,
+        domainNames: [this.fullDomainName, `www.${this.fullDomainName}`],
+        certificate,
+      };
+    }
+
+    // CloudFront
+    this.distribution = new Distribution(
+      this,
+      "StaticSiteDistribution",
+      distributionProps
+    );
+
+    // hosted zone and full domain name must exist to create Route 53 records
+    if (this.zone && this.fullDomainName) {
+      // IPv4
+      new ARecord(this, "StaticSiteARecord", {
+        zone: this.zone,
+        recordName: this.fullDomainName,
+        target: RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)),
+      });
+      new ARecord(this, "StaticSiteSubsiteARecord", {
+        zone: this.zone,
+        recordName: `*.${this.fullDomainName}`,
+        target: RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)),
+      });
+      // IPv6
+      new AaaaRecord(this, "StaticSiteAaaaRecord", {
+        zone: this.zone,
+        recordName: this.fullDomainName,
+        target: RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)),
+      });
+      new AaaaRecord(this, "StaticSiteSubsiteAaaaRecord", {
+        zone: this.zone,
+        recordName: `*.${this.fullDomainName}`,
+        target: RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)),
+      });
+    }
+
     // TODO: create CloudFront Function to specify Content-Security-Policy
     buildStaticSite({ path, buildCommand, envVars });
     new BucketDeployment(this, "BucketDeployment", {
