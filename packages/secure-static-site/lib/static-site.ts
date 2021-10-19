@@ -49,9 +49,9 @@ export interface StaticSiteProps {
    */
   envVars?: Record<`VITE_${string}`, string>;
   /**
-   * IPs that are allowed to view docs - uses WAF
+   * IPs that are allowed to view docs - uses WAF (CIDR notation)
    */
-  allowedIps?: string[];
+  allowedIPs?: string[];
   /**
    * HTTP Response Headers
    * Headers added via CloudFront Function to origin responses
@@ -103,7 +103,7 @@ export class StaticSite extends Construct {
       distFolder = "dist",
       envVars,
       buildCommand = "npm run build",
-      allowedIps,
+      allowedIPs,
       responseHeaders,
       domainNameBase,
       domainNamePrefix,
@@ -117,37 +117,64 @@ export class StaticSite extends Construct {
     });
 
     // WAF
-    let webACL: CfnWebACL | undefined = undefined;
-    if (allowedIps) {
+    // allow requests that are not blocked by other rules by default
+    let defaultAction: CfnWebACL.RuleActionProperty = { allow: {} };
+    let rules: CfnWebACL.RuleProperty[] = [
+      {
+        // https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-list.html
+        overrideAction: { none: {} },
+        name: "CoreRuleSet",
+        statement: {
+          managedRuleGroupStatement: {
+            vendorName: "AWS",
+            name: "AWSManagedRulesCommonRuleSet",
+          },
+        },
+        priority: 2,
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: false,
+          metricName: "CoreRuleSetMetric",
+          sampledRequestsEnabled: false,
+        },
+      },
+    ];
+
+    // add allowed IPs to rule list if applicable
+    if (allowedIPs) {
       const ipRuleSet = new CfnIPSet(this, "IPRuleSet", {
-        addresses: allowedIps,
+        addresses: allowedIPs,
         ipAddressVersion: "IPV4",
         scope: "CLOUDFRONT",
       });
-      webACL = new CfnWebACL(this, "WebACL", {
-        defaultAction: { block: {} },
-        rules: [
-          {
-            action: { allow: {} },
-            name: "AllowIPs",
-            statement: { ipSetReferenceStatement: { arn: ipRuleSet.attrArn } },
-            priority: 1,
-            visibilityConfig: {
-              cloudWatchMetricsEnabled: false,
-              metricName: "AllowIPsMetric",
-              sampledRequestsEnabled: false,
-            },
-          },
-        ],
-        scope: "CLOUDFRONT",
+      const allowIPsRule: CfnWebACL.RuleProperty = {
+        action: { allow: {} },
+        name: "AllowIPs",
+        statement: { ipSetReferenceStatement: { arn: ipRuleSet.attrArn } },
+        priority: 1,
         visibilityConfig: {
           cloudWatchMetricsEnabled: false,
-          metricName: "BlockAllMetric",
+          metricName: "AllowIPsMetric",
           sampledRequestsEnabled: false,
         },
-      });
+      };
+      // if only allowing specified IPs, then block requests that aren't included
+      defaultAction = { block: {} };
+      rules = [allowIPsRule, ...rules];
     }
 
+    // For CLOUDFRONT, you must create your WAFv2 resources in the US East (N. Virginia) Region, us-east-1.
+    const webACL = new CfnWebACL(this, "WebACL", {
+      defaultAction,
+      rules,
+      scope: "CLOUDFRONT",
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: false,
+        metricName: "DefaultMetric",
+        sampledRequestsEnabled: false,
+      },
+    });
+
+    // CloudFront
     let distributionProps: DistributionProps = {
       defaultBehavior: {
         origin: new S3Origin(this.bucket),
@@ -164,7 +191,7 @@ export class StaticSite extends Construct {
         ],
       },
       defaultRootObject: "index.html",
-      webAclId: webACL?.attrId,
+      webAclId: webACL.attrArn,
       errorResponses: [
         {
           httpStatus: 404,
@@ -196,7 +223,6 @@ export class StaticSite extends Construct {
       };
     }
 
-    // CloudFront
     this.distribution = new Distribution(
       this,
       "StaticSiteDistribution",
@@ -205,7 +231,7 @@ export class StaticSite extends Construct {
 
     // hosted zone and full domain name must exist to create Route 53 records
     if (this.zone && this.fullDomainName) {
-      // IPv4
+      // IPV4
       new ARecord(this, "StaticSiteARecord", {
         zone: this.zone,
         recordName: this.fullDomainName,
@@ -216,7 +242,7 @@ export class StaticSite extends Construct {
         recordName: `*.${this.fullDomainName}`,
         target: RecordTarget.fromAlias(new CloudFrontTarget(this.distribution)),
       });
-      // IPv6
+      // IPV6
       new AaaaRecord(this, "StaticSiteAaaaRecord", {
         zone: this.zone,
         recordName: this.fullDomainName,
