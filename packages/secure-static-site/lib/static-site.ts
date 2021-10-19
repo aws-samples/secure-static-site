@@ -28,6 +28,7 @@ import {
 
 import { buildStaticSite } from "./buildStaticSite";
 import { getFunctionCode, ResponseHeaders } from "./responseHeaders";
+import { createWafRules } from "./createWafRules";
 
 export interface StaticSiteProps {
   /**
@@ -75,6 +76,30 @@ export interface StaticSiteProps {
    */
   responseHeaders?: ResponseHeaders;
   /**
+   * Enable WAF with common AWS managed rules by default
+   * https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-list.html
+   */
+  enableWaf?: boolean;
+  /**
+   * Enable metrics for WAF
+   */
+  enableWafMetrics?: boolean;
+  /**
+   * Disable Core rule set (CRS) WAF Rule Group
+   * WCU: 700
+   */
+  disableCoreWafRuleGroup?: boolean;
+  /**
+   * Disable Amazon IP  WAF Rule Group
+   * WCU: 25
+   */
+  disableAmazonIPWafRuleGroup?: boolean;
+  /**
+   * Disable Anonymous IP WAF Rule Group
+   * WCU: 50
+   */
+  disableAnonymousIPWafRuleGroup?: boolean;
+  /**
    * Base domain name (should match Route 53 hosted zone name)
    */
   domainNameBase?: string;
@@ -105,9 +130,14 @@ export class StaticSite extends Construct {
       buildCommand = "npm run build",
       allowedIPs,
       responseHeaders,
+      enableWaf,
+      disableCoreWafRuleGroup,
+      disableAmazonIPWafRuleGroup,
+      disableAnonymousIPWafRuleGroup,
       domainNameBase,
       domainNamePrefix,
     } = props;
+    const enableWafMetrics = !!props.enableWafMetrics;
 
     // S3
     this.bucket = new Bucket(this, "StaticSiteBucket", {
@@ -117,62 +147,43 @@ export class StaticSite extends Construct {
     });
 
     // WAF
-    // allow requests that are not blocked by other rules by default
-    let defaultAction: CfnWebACL.RuleActionProperty = { allow: {} };
-    let rules: CfnWebACL.RuleProperty[] = [
-      {
-        // https://docs.aws.amazon.com/waf/latest/developerguide/aws-managed-rule-groups-list.html
-        overrideAction: { none: {} },
-        name: "CoreRuleSet",
-        statement: {
-          managedRuleGroupStatement: {
-            vendorName: "AWS",
-            name: "AWSManagedRulesCommonRuleSet",
-          },
-        },
-        priority: 2,
-        visibilityConfig: {
-          cloudWatchMetricsEnabled: false,
-          metricName: "CoreRuleSetMetric",
-          sampledRequestsEnabled: false,
-        },
-      },
-    ];
+    let webACL: CfnWebACL | undefined = undefined;
+    if (enableWaf) {
+      // allow requests that are not blocked by other rules by default
+      let defaultAction: CfnWebACL.RuleActionProperty = { allow: {} };
 
-    // add allowed IPs to rule list if applicable
-    if (allowedIPs) {
-      const ipRuleSet = new CfnIPSet(this, "IPRuleSet", {
-        addresses: allowedIPs,
-        ipAddressVersion: "IPV4",
-        scope: "CLOUDFRONT",
+      let ipRuleSet: CfnIPSet | undefined = undefined;
+      if (allowedIPs) {
+        defaultAction = { block: {} };
+        ipRuleSet = new CfnIPSet(this, "IPRuleSet", {
+          addresses: allowedIPs,
+          ipAddressVersion: "IPV4",
+          scope: "CLOUDFRONT",
+        });
+      }
+
+      // create WAF rules using relevant props
+      let rules: CfnWebACL.RuleProperty[] = createWafRules({
+        enableWafMetrics,
+        disableAmazonIPWafRuleGroup,
+        disableAnonymousIPWafRuleGroup,
+        disableCoreWafRuleGroup,
+        allowedIPs,
+        ipRuleSet,
       });
-      const allowIPsRule: CfnWebACL.RuleProperty = {
-        action: { allow: {} },
-        name: "AllowIPs",
-        statement: { ipSetReferenceStatement: { arn: ipRuleSet.attrArn } },
-        priority: 1,
-        visibilityConfig: {
-          cloudWatchMetricsEnabled: false,
-          metricName: "AllowIPsMetric",
-          sampledRequestsEnabled: false,
-        },
-      };
-      // if only allowing specified IPs, then block requests that aren't included
-      defaultAction = { block: {} };
-      rules = [allowIPsRule, ...rules];
-    }
 
-    // For CLOUDFRONT, you must create your WAFv2 resources in the US East (N. Virginia) Region, us-east-1.
-    const webACL = new CfnWebACL(this, "WebACL", {
-      defaultAction,
-      rules,
-      scope: "CLOUDFRONT",
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: false,
-        metricName: "DefaultMetric",
-        sampledRequestsEnabled: false,
-      },
-    });
+      // For CLOUDFRONT, you must create your WAFv2 resources in the US East (N. Virginia) Region, us-east-1.
+      webACL = new CfnWebACL(this, "WebACL", {
+        defaultAction,
+        rules,
+        scope: "CLOUDFRONT",
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: enableWafMetrics,
+          metricName: "DefaultMetric",
+          sampledRequestsEnabled: enableWafMetrics,
+        },
+      });
+    }
 
     // CloudFront
     let distributionProps: DistributionProps = {
@@ -191,7 +202,6 @@ export class StaticSite extends Construct {
         ],
       },
       defaultRootObject: "index.html",
-      webAclId: webACL.attrArn,
       errorResponses: [
         {
           httpStatus: 404,
@@ -200,6 +210,11 @@ export class StaticSite extends Construct {
         },
       ],
     };
+
+    // add WAF web ACL to distribution if present
+    if (webACL) {
+      distributionProps = { ...distributionProps, webAclId: webACL.attrArn };
+    }
 
     // configure Route 53 only if domain name base and prefix are set
     if (domainNameBase && domainNamePrefix) {
