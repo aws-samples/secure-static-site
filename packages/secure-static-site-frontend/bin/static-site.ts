@@ -5,6 +5,7 @@ import { StaticSite } from "secure-static-site";
 
 const app = new App();
 const name = "secure-static-site";
+
 class StaticSiteStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
@@ -14,7 +15,12 @@ class StaticSiteStack extends Stack {
       distFolder: "dist",
       buildCommand: "npm run build",
       envVars: { VITE_TEST_VAR: "VITE_TEST_VAR" },
-      // allowedIps: [],
+      enableWaf: true,
+      enableWafMetrics: true,
+      // disableCoreWafRuleGroup: true,
+      // disableAmazonIPWafRuleGroup: true,
+      disableAnonymousIPWafRuleGroup: true,
+      // allowedIPs: ["11.22.33.44/32"],
       domainNameBase: "tomdenn.people.aws.dev",
       domainNamePrefix: "secure-static-site",
     });
