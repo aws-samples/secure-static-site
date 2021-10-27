@@ -64,7 +64,7 @@ interface StrictTransportSecurity {
    * maxAge - how long user agents will redirect to HTTPS, in seconds
    * @default 63072000
    */
-  maxAge: number;
+  maxAge?: number;
   /**
    * includeSubdomains - whether user agents should upgrade requests on subdomains
    * @default true
@@ -77,16 +77,23 @@ interface StrictTransportSecurity {
   preload?: boolean;
 }
 
+/**
+ * Control the response headers added by CloudFront Functions with specific
+ * parameters for security related headers.
+ * Note, X-Frame-Options were considered to be added as a specific parameter
+ * but CSP's frame-ancestors achieves the same functionality. X-XSS-Protection
+ * is not needed because the CSP policy can prevent unsafe inline JS.
+ */
 export interface ResponseHeaders {
   /**
-   * Other
-   * Manual HTTP headers set on response
+   * Custom HTTP headers set on response
    * @defualt undefined
    * @example { "Access-Control-Allow-Origin": "*" }
    */
-  other?: Record<string, string>;
+  custom?: Record<string, string>;
   /**
    * Content Security Policies are allow lists to tell the client what it's allowed to download
+   * Assign `false` to disable
    * Learn more [here]{@link https://developers.google.com/web/fundamentals/security/csp}
    * @default ```js
    * {
@@ -99,9 +106,10 @@ export interface ResponseHeaders {
    * }
    * ```
    */
-  contentSecurityPolicy?: ContentSecurityPolicy;
+  contentSecurityPolicy?: ContentSecurityPolicy | false;
   /**
    * HTTP Strict Transport Security notifies user agents to only connect to a given site over HTTPS
+   * Assign `false` to disable
    * @default ```js
    * {
    *    maxAge: 63072000, // 2 years
@@ -110,7 +118,15 @@ export interface ResponseHeaders {
    * }
    * ```
    */
-  strictTransportSecurity?: StrictTransportSecurity;
+  strictTransportSecurity?: StrictTransportSecurity | false;
+  /**
+   * Indicates that the MIME types advertised in the Content-Type headers should be followed and not
+   * changed.
+   * Assign `false` to disable
+   * Learn more [here]{@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options}
+   * @deafult "sniff"
+   */
+  contentTypeOptions?: "nosniff" | false;
 }
 
 const cspDirectives: Record<keyof ContentSecurityPolicy, string> = {
@@ -128,21 +144,28 @@ const cspDirectives: Record<keyof ContentSecurityPolicy, string> = {
 };
 
 export function getFunctionCode(httpHeaders?: ResponseHeaders): string {
-  const csp = getCsp(httpHeaders?.contentSecurityPolicy);
-  const sts = getSts(httpHeaders?.strictTransportSecurity);
-  const additionalHeaders = {
-    "content-security-policy": { value: csp },
-    "strict-transport-security": { value: sts },
-    "x-content-type-options": { value: "nosniff" },
-    "x-frame-options": { value: "DENY" },
-    "x-xss-protection": { value: "1; mode=block" },
-  };
+  const headers: Record<string, unknown> = httpHeaders?.custom || {};
+  if (httpHeaders?.contentSecurityPolicy !== false) {
+    headers["content-security-policy"] = {
+      value: getCsp(httpHeaders?.contentSecurityPolicy),
+    };
+  }
+  if (httpHeaders?.strictTransportSecurity !== false) {
+    headers["strict-transport-security"] = {
+      value: getSts(httpHeaders?.strictTransportSecurity),
+    };
+  }
+  if (httpHeaders?.contentTypeOptions !== false) {
+    headers["x-content-type-options"] = {
+      value: httpHeaders?.contentTypeOptions || "nosniff",
+    };
+  }
   return readFileSync(resolve(__dirname, "./viewerResponseFn.js"))
     .toString()
-    .replace("{{ADDITIONAL_HEADERS}}", JSON.stringify(additionalHeaders));
+    .replace("{{ADDITIONAL_HEADERS}}", JSON.stringify(headers));
 }
 
-function getCsp(csp: ContentSecurityPolicy = {}): string {
+export function getCsp(csp: ContentSecurityPolicy = {}): string {
   if (!csp.defaultSrc) csp.defaultSrc = "none";
   if (!csp.scriptSrc) csp.scriptSrc = "self";
   if (!csp.connectSrc) csp.connectSrc = "self";
@@ -155,12 +178,15 @@ function getCsp(csp: ContentSecurityPolicy = {}): string {
     if (v === "none" || v === "self") newV = `'${v}'`;
     cspString += `${cspDirectives[k as keyof ContentSecurityPolicy]} ${newV}; `;
   }
-  return cspString;
+  return cspString.trim();
 }
 
-function getSts(sts?: StrictTransportSecurity): string {
-  let stsString = `max-age=${sts?.maxAge || 63072000}`;
-  if (sts?.includeSubdomains) stsString += "; includeSubDomains";
-  if (sts?.preload) stsString += "; preload";
+export function getSts(sts: StrictTransportSecurity = {}): string {
+  if (!sts.maxAge) sts.maxAge = 63072000;
+  if (!sts.includeSubdomains) sts.includeSubdomains = true;
+  if (!sts.preload) sts.preload = true;
+  let stsString = `max-age=${sts.maxAge}`;
+  if (sts.includeSubdomains) stsString += "; includeSubDomains";
+  if (sts.preload) stsString += "; preload";
   return stsString;
 }

@@ -1,4 +1,4 @@
-import { recordToEnvVars } from "../lib/buildStaticSite";
+import { recordToEnvVars } from "./buildStaticSite";
 
 describe("buildStaticSite", () => {
   test("recordToEnvVars returns correct string", () => {

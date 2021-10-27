@@ -163,7 +163,7 @@ export class StaticSite extends Construct {
       }
 
       // create WAF rules using relevant props
-      let rules: CfnWebACL.RuleProperty[] = createWafRules({
+      const rules: CfnWebACL.RuleProperty[] = createWafRules({
         enableWafMetrics,
         disableAmazonIPWafRuleGroup,
         disableAnonymousIPWafRuleGroup,
@@ -224,7 +224,7 @@ export class StaticSite extends Construct {
       // prefix allows multiple apps to use same base
       this.fullDomainName = `${domainNamePrefix}.${domainNameBase}`;
       // can only create certificate in CDK if using Route 53 for DNS
-      let certificate = new Certificate(this, "StaticSiteCertificate", {
+      const certificate = new Certificate(this, "StaticSiteCertificate", {
         domainName: this.fullDomainName,
         validation: CertificateValidation.fromDns(this.zone),
         // allow subdomains (e.g. www, test, stage, etc)

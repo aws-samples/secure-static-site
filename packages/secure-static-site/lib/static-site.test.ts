@@ -1,6 +1,6 @@
 import { Stack } from "aws-cdk-lib";
 import "@aws-cdk/assert/jest";
-import { StaticSite } from "../lib/static-site";
+import { StaticSite } from "./static-site";
 
 // need to mock these because they read from file system
 jest.mock("../lib/buildStaticSite");

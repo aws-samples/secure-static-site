@@ -10,19 +10,23 @@ class StaticSiteStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
+    // By default, StaticSite will run `npm run build` and look for 
+    // compiled static assets in the dist folder
     const staticSite = new StaticSite(this, "SecureStaticSite", {
-      path: "./",
-      distFolder: "dist",
-      buildCommand: "npm run build",
-      envVars: { VITE_TEST_VAR: "VITE_TEST_VAR" },
+      envVars: { VITE_TEST_VAR: "PUBLIC_API_KEY_123" },
+      responseHeaders: {
+        contentSecurityPolicy: {
+          scriptSrc: "self https://unpkg.com;"
+        },
+      },
       enableWaf: true,
       enableWafMetrics: true,
       // disableCoreWafRuleGroup: true,
       // disableAmazonIPWafRuleGroup: true,
-      disableAnonymousIPWafRuleGroup: true,
+      // disableAnonymousIPWafRuleGroup: true,
       // allowedIPs: ["11.22.33.44/32"],
-      domainNameBase: "tomdenn.people.aws.dev",
-      domainNamePrefix: "secure-static-site",
+      // domainNameBase: "tomdenn.people.aws.dev",
+      // domainNamePrefix: "secure-static-site",
     });
 
     new CfnOutput(this, "bucketName", {
