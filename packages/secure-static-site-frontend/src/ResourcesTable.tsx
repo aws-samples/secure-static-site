@@ -41,11 +41,6 @@ const initState: State = {
     url: `${window.location.origin}/sup.mp4`,
     loading: false,
   },
-  iframe: {
-    type: "iFrame",
-    url: "https://www.youtube.com/embed/AT-nHW3_SVI",
-    loading: false,
-  },
 }
 
 type Action = { type: "request", key: string } | { type: "response", key: string, status: string };
@@ -64,26 +59,12 @@ export function ResourcesTable() {
   async function handleClick(key: string) {
     dispatch({ type: "request", key });
     let status = "Blocked";
-    if (key === "video") {
+    if (key === "media") {
       const video = document.createElement("video");
       video.onloadeddata = () => dispatch({ type: "response", key, status: "200" });
       video.onerror = () => dispatch({ type: "response", key, status });
       video.src = "/sup.mp4";
       video.load();
-    } else if (key === "iframe") {
-      const iframe = document.createElement("iframe");
-      iframe.onload = () => {
-        if (iframe.querySelector("body.neterror")) {
-          dispatch({ type: "response", key, status })
-        } else {
-          dispatch({ type: "response", key, status: "200" })
-        }
-      }
-      // iframe.onerror doesn't work so have to test inner html to determine if CSP block
-      iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-      iframe.src = state[key].url;
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
     } else {
       try {
         const res = await fetch(state[key].url);
