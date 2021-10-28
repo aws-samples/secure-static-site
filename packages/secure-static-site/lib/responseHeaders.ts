@@ -24,19 +24,19 @@ interface ContentSecurityPolicy {
   styleSrc?: string;
   /**
    * img-src - defines the origins from which images can be loaded
-   * @default 'none'
+   * @default 'self'
    */
   imgSrc?: string;
+  /**
+   * font-src - specifies the origins that can serve web fonts
+   * @default 'self'
+   */
+  fontSrc?: string;
   /**
    * media-src - restricts the origins allowed to deliver video and audio
    * @default undefined
    */
   mediaSrc?: string;
-  /**
-   * font-src - specifies the origins that can serve web fonts
-   * @default undefined
-   */
-  fontSrc?: string;
   /**
    * object-src - allows control over Flash and other plugins
    * @default undefined
@@ -101,6 +101,8 @@ export interface ResponseHeaders {
    *    scriptSrc: "self",
    *    connectSrc: "self",
    *    styleSrc: "self",
+   *    imgSrc: "self"
+   *    fontSrc: "self",
    *    formAction: "none",
    *    frameAncestors: "none",
    * }
@@ -170,6 +172,8 @@ export function getCsp(csp: ContentSecurityPolicy = {}): string {
   if (!csp.scriptSrc) csp.scriptSrc = "self";
   if (!csp.connectSrc) csp.connectSrc = "self";
   if (!csp.styleSrc) csp.styleSrc = "self";
+  if (!csp.fontSrc) csp.fontSrc = "self";
+  if (!csp.imgSrc) csp.imgSrc = "self";
   if (!csp.formAction) csp.formAction = "none";
   if (!csp.frameAncestors) csp.frameAncestors = "none";
   let cspString = "";

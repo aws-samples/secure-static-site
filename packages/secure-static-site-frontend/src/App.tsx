@@ -1,44 +1,33 @@
-import { useState } from 'react'
-import logo from './logo.svg'
-import './App.css'
+import { useState } from 'react';
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+import Grid from "@mui/material/Grid";
+import { ResourcesTable } from './ResourcesTable';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>Hello Vite + React!</p>
-        <p>
-          <button type="button" onClick={() => setCount((count) => count + 1)}>
-            count is: {count}
-          </button>
-        </p>
-        <p>
-          Edit <code>App.tsx</code> and save to test HMR updates.
-        </p>
-        <p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-          {' | '}
-          <a
-            className="App-link"
-            href="https://vitejs.dev/guide/features.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Vite Docs
-          </a>
-        </p>
-      </header>
-    </div>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Secure Static Site
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Grid container justifyContent="center" alignItems="center" p="2em">
+        <Grid item xs={12} sx={{ my: "1rem" }}>
+          <Typography variant="h1" sx={{ fontSize: "3rem", textAlign: "center" }}>
+            Validate Content-Security-Policy
+          </Typography>
+        </Grid>
+        <Grid item md={11} lg={8}>
+          <ResourcesTable />
+        </Grid>
+      </Grid>
+    </Box>
+
   )
 }
 

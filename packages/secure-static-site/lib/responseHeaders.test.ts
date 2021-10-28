@@ -4,7 +4,7 @@ describe("getCsp", () => {
   test("default CSP", () => {
     const csp = getCsp({});
     expect(csp).toBe(
-      "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; form-action 'none'; frame-ancestors 'none';"
+      "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; form-action 'none'; frame-ancestors 'none'"
     );
   });
 });

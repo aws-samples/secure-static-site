@@ -16,7 +16,13 @@ class StaticSiteStack extends Stack {
       envVars: { VITE_TEST_VAR: "PUBLIC_API_KEY_123" },
       responseHeaders: {
         contentSecurityPolicy: {
-          scriptSrc: "self https://unpkg.com;"
+          fontSrc: "'self' data:",
+          styleSrc: "'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='"
+          // scriptSrc: "'self' https://unpkg.com/react@17/umd/react.production.min.js",
+          // styleSrc: "'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css",
+          // fontSrc: "'self' data: https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+          // mediaSrc: "'self'",
+          // frameAncestors: "https://www.youtube.com/embed/AT-nHW3_SVI"
         },
       },
       enableWaf: true,
