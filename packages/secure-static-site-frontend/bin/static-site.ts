@@ -25,8 +25,8 @@ class StaticSiteStack extends Stack {
           // frameAncestors: "https://www.youtube.com/embed/AT-nHW3_SVI"
         },
       },
-      enableWaf: true,
-      enableWafMetrics: true,
+      // enableWaf: true,
+      // enableWafMetrics: true,
       // disableCoreWafRuleGroup: true,
       // disableAmazonIPWafRuleGroup: true,
       // disableAnonymousIPWafRuleGroup: true,
