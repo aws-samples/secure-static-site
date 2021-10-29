@@ -31,7 +31,7 @@ class StaticSiteStack extends Stack {
       // disableAmazonIPWafRuleGroup: true,
       // disableAnonymousIPWafRuleGroup: true,
       // allowedIPs: ["11.22.33.44/32"],
-      // domainNameBase: "tomdenn.people.aws.dev",
+      // domainNameBase: "basedomain.com",
       // domainNamePrefix: "secure-static-site",
     });
 
