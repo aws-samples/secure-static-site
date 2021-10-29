@@ -26,21 +26,6 @@ export const createWafRules = (props: Props): CfnWebACL.RuleProperty[] => {
   let rules: CfnWebACL.RuleProperty[] = [];
   let priority = 0;
 
-  // add allowed IPs to rule list if applicable
-  if (allowedIPs && ipRuleSet) {
-    rules.push({
-      action: { allow: {} },
-      name: "AllowIPs",
-      statement: { ipSetReferenceStatement: { arn: ipRuleSet.attrArn } },
-      priority: priority++,
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: enableWafMetrics,
-        metricName: "AllowIPsMetric",
-        sampledRequestsEnabled: enableWafMetrics,
-      },
-    });
-  }
-
   if (!disableAmazonIPWafRuleGroup) {
     rules.push({
       overrideAction: { none: {} },
@@ -93,6 +78,21 @@ export const createWafRules = (props: Props): CfnWebACL.RuleProperty[] => {
       visibilityConfig: {
         cloudWatchMetricsEnabled: enableWafMetrics,
         metricName: "CoreRuleSetMetric",
+        sampledRequestsEnabled: enableWafMetrics,
+      },
+    });
+  }
+
+  // add allowed IPs to rule list if applicable
+  if (allowedIPs && ipRuleSet) {
+    rules.push({
+      action: { allow: {} },
+      name: "AllowIPs",
+      statement: { ipSetReferenceStatement: { arn: ipRuleSet.attrArn } },
+      priority: priority++,
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: enableWafMetrics,
+        metricName: "AllowIPsMetric",
         sampledRequestsEnabled: enableWafMetrics,
       },
     });
