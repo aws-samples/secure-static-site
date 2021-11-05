@@ -17,12 +17,11 @@ class StaticSiteStack extends Stack {
       responseHeaders: {
         contentSecurityPolicy: {
           fontSrc: "'self' data:",
-          styleSrc: "'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='"
+          styleSrc: "'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='",
           // scriptSrc: "'self' https://unpkg.com/react@17/umd/react.production.min.js",
           // styleSrc: "'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css",
-          // fontSrc: "'self' data: https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
+          // fontSrc: "'self' data: http://themes.googleusercontent.com/static/fonts/overlock/v2/Pr-80_x4SIOocpxz2VxC5fesZW2xOQ-xsNqO47m55DA.woff",
           // mediaSrc: "'self'",
-          // frameAncestors: "https://www.youtube.com/embed/AT-nHW3_SVI"
         },
       },
       // enableWaf: true,
