@@ -1,5 +1,5 @@
 import { Construct } from "constructs";
-import { Bucket } from "aws-cdk-lib/lib/aws-s3";
+import { Bucket, BucketEncryption, StorageClass } from "aws-cdk-lib/lib/aws-s3";
 import {
   Distribution,
   Function,
@@ -7,9 +7,10 @@ import {
   FunctionCode,
   ViewerProtocolPolicy,
   DistributionProps,
+  SecurityPolicyProtocol,
 } from "aws-cdk-lib/lib/aws-cloudfront";
 import { S3Origin } from "aws-cdk-lib/aws-cloudfront-origins";
-import { RemovalPolicy } from "aws-cdk-lib";
+import { Duration, RemovalPolicy } from "aws-cdk-lib";
 import { BucketDeployment, Source } from "aws-cdk-lib/aws-s3-deployment";
 import { resolve } from "path";
 import { CfnWebACL, CfnIPSet } from "aws-cdk-lib/aws-wafv2";
@@ -140,10 +141,27 @@ export class StaticSite extends Construct {
     const enableWafMetrics = !!props.enableWafMetrics;
 
     // S3
+    const serverAccessLogsBucket = new Bucket(this, "ServerAccessLogsBucket", {
+      enforceSSL: true,
+      encryption: BucketEncryption.S3_MANAGED,
+      lifecycleRules: [
+        { 
+          transitions: [
+            {
+              storageClass: StorageClass.INTELLIGENT_TIERING,
+              transitionAfter: Duration.days(0),
+            }
+          ]
+        }
+      ]
+    });
     this.bucket = new Bucket(this, "StaticSiteBucket", {
       autoDeleteObjects: true,
       removalPolicy: RemovalPolicy.DESTROY,
       enforceSSL: true,
+      encryption: BucketEncryption.S3_MANAGED,
+      serverAccessLogsBucket,
+      serverAccessLogsPrefix: "s3"
     });
 
     // WAF
@@ -209,6 +227,10 @@ export class StaticSite extends Construct {
           responsePagePath: "/index.html",
         },
       ],
+      enableLogging: true,
+      logBucket: serverAccessLogsBucket,
+      logFilePrefix: "cloudfront",
+      minimumProtocolVersion: SecurityPolicyProtocol.TLS_V1_2_2021,
     };
 
     // add WAF web ACL to distribution if present
