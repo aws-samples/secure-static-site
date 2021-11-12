@@ -43,7 +43,7 @@ See the associated [Amazon Prescriptive Guidance (APG) Pattern](https://apg-libr
 |Story|Description|Skills required|
 |-|-|-|
 |Clone Repository|Clone the repository from https://github.com/aws-samples/secure-static-site and install dependencies.<br/><br/>```git clone https://github.com/aws-samples/secure-static-site.git```<br/>```cd secure-static-site```<br/>```pnpm install```|App developer|
-|Deploy Infrastructure|Deploy the infrastructure defined by the CDK in the secure-static-site-frontend package. This package uses the construct defined in the secure-static-site package.<br/><br/>```cd secure-static-site-frontend```<br/>```cdk deploy```<br/>```# after reviewing security changes, remember to enter y```<br/><br/>Note, if you run into error about your AWS Account not being boostrapped for the CDK, make sure to review the prerequisites.|App developer|
+|Deploy Infrastructure|Deploy the infrastructure defined by the CDK in the secure-static-site-frontend package. This package uses the construct defined in the secure-static-site package. Note, this will deploy a website publicly accessible.<br/><br/>```cd secure-static-site-frontend```<br/>```cdk deploy```<br/>```# after reviewing security changes, remember to enter y```<br/><br/>Note, if you run into error about your AWS Account not being boostrapped for the CDK, make sure to review the prerequisites.|App developer|
 
 ### Validate HTTP Security Headers
 
